@@ -1,0 +1,16 @@
+{
+  "name": "zoom-access-system",
+  "version": "1.0.0",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "latest",
+    "body-parser": "latest",
+    "redis": "latest",
+    "nodemailer": "latest",
+    "cors": "latest"
+  }
+}
