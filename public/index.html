@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Class Access</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="card">
+  <h1>Enter your email</h1>
+
+  <input id="email" type="email" placeholder="you@example.com">
+  <button id="sendBtn">Send Code</button>
+  <p id="studentMsg" class="muted"></p>
+
+  <div id="otpRow" class="hidden">
+    <input id="otp" type="text" placeholder="OTP">
+    <button id="verifyBtn">Verify</button>
+  </div>
+
+  <div id="zoomDiv" class="hidden">
+    <p>Click link:</p>
+    <a id="zoomLink" href="#" target="_blank">Join Zoom</a>
+  </div>
+
+  <hr>
+
+  <h2>Admin – Change Zoom Link</h2>
+  <input id="adminLink" type="text" placeholder="New Zoom link">
+  <button id="setLinkBtn">Update</button>
+  <p id="adminMsg" class="muted"></p>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
