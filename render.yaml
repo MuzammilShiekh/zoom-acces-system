@@ -5,18 +5,10 @@ services:
     plan: free
     branch: main
     buildCommand: "npm install"
-    startCommand: "npm start"
+    startCommand: "node server.js"
+    autoDeploy: true
     envVars:
       - key: EMAIL
         sync: false
       - key: EMAIL_PASS
         sync: false
-      - key: REDIS_URL
-        fromService:
-          name: zoom-redis
-          type: redis
-
-databases:
-  - name: zoom-redis
-    plan: free
-    type: redis
