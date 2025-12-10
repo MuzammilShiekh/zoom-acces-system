@@ -1,87 +1,93 @@
 import express from "express";
-import bodyParser from "body-parser";
-import cors from "cors";
 import nodemailer from "nodemailer";
-import { createClient } from "redis";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(bodyParser.json());
-app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
 
-// ------------------------
-// CONFIG
-// ------------------------
+const OTP_FILE = "otps.json";
 
-let currentZoomLink = "https://zoom.us/j/123456789"; // default, teacher can change
+// Load OTPs from file
+function loadOTPs() {
+  if (!fs.existsSync(OTP_FILE)) return {};
+  return JSON.parse(fs.readFileSync(OTP_FILE));
+}
 
-// Redis client
-const redis = createClient({
-  url: process.env.REDIS_URL
-});
-redis.connect();
+// Save OTPs to file
+function saveOTPs(data) {
+  fs.writeFileSync(OTP_FILE, JSON.stringify(data));
+}
 
-// Gmail email sender
-const mailer = nodemailer.createTransport({
+// Cool 6-character OTP (letters + numbers)
+function generateOTP() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let otp = "";
+  for (let i = 0; i < 6; i++) {
+    otp += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return otp;
+}
+
+// Email sender config
+const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL,
-    pass: process.env.EMAIL_PASS
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+// API — Send OTP
+app.post("/send-otp", async (req, res) => {
+  const { email } = req.body;
+
+  const otps = loadOTPs();
+  const otp = generateOTP();
+  otps[email] = otp;
+  saveOTPs(otps);
+
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL,
+      to: email,
+      subject: "Your Zoom Access OTP",
+      text: `Your OTP is: ${otp}`,
+    });
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.json({ success: false, message: "Email sending failed" });
   }
 });
 
-// Cool OTP generator (letters + numbers)
-function generateOTP() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
+// API — Verify OTP
+app.post("/verify-otp", (req, res) => {
+  const { email, otp } = req.body;
+
+  const otps = loadOTPs();
+
+  if (otps[email] === otp) {
+    delete otps[email]; // one-time use OTP
+    saveOTPs(otps);
+
+    // Send back your Zoom link
+    return res.json({
+      success: true,
+      link: "https://zoom.us/your-actual-meeting-link",
+    });
   }
-  return code;
-}
 
-// ------------------------
-// API
-// ------------------------
-
-// SEND OTP
-app.post("/send-code", async (req, res) => {
-  const email = req.body.email;
-  if (!email) return res.json({ ok: false });
-
-  const code = generateOTP();
-
-  await redis.set(`code:${email}`, code, { EX: 600 });
-
-  await mailer.sendMail({
-    to: email,
-    subject: "Your Class Verification Code",
-    text: `Your one-time code: ${code}`
-  });
-
-  res.json({ ok: true });
+  return res.json({ success: false, message: "Invalid OTP" });
 });
 
-// VERIFY OTP
-app.post("/verify-code", async (req, res) => {
-  const { email, code } = req.body;
-
-  const saved = await redis.get(`code:${email}`);
-
-  if (!saved) return res.json({ ok: false, error: "expired" });
-  if (saved !== code) return res.json({ ok: false, error: "wrong" });
-
-  await redis.del(`code:${email}`);
-
-  res.json({ ok: true, zoom: currentZoomLink });
+// Start server
+app.listen(3000, () => {
+  console.log("Server running on port 3000");
 });
-
-// SET ZOOM LINK (Admin)
-app.post("/set-zoom", async (req, res) => {
-  const { zoom } = req.body;
-  if (!zoom) return res.json({ ok: false });
-  currentZoomLink = zoom;
-  res.json({ ok: true });
-});
-
-// ------------------------
-app.listen(10000, () => console.log("Server running"));
